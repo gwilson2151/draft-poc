@@ -1,7 +1,7 @@
 'use strict';
 
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import {render} from "react-dom";
 import {Editor, EditorState, Modifier, RichUtils, convertToRaw} from "draft-js";
 import {stateToHTML} from "draft-js-export-html";
 import {stateFromHTML} from 'draft-js-import-html';
@@ -33,7 +33,7 @@ class ColorfulEditorExample extends React.Component {
 	logContentState() {
 		const currentContent = this.state.editorState.getCurrentContent();
 		console.log(currentContent);
-		console.log(convertToRaw(currentContent));
+		console.log(JSON.stringify(convertToRaw(currentContent)));
 		console.log(stateToHTML(currentContent, convertToHtmlOptions));
 	}
 	
@@ -260,7 +260,7 @@ const styles = {
 	},
 };
 
-ReactDOM.render(
+render(
 	<ColorfulEditorExample />,
 	document.getElementById('root')
 );
