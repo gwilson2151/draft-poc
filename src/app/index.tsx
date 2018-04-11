@@ -1,8 +1,10 @@
 'use strict';
 
-import {Editor, EditorState, Modifier, RichUtils, convertToRaw} from "draft-js";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import {Editor, EditorState, Modifier, RichUtils, convertToRaw} from "draft-js";
+import {stateToHTML} from "draft-js-export-html";
+import {stateFromHTML} from 'draft-js-import-html';
 
 class ColorfulEditorExample extends React.Component {
 	
@@ -14,6 +16,7 @@ class ColorfulEditorExample extends React.Component {
 	  this.state = {editorState: EditorState.createEmpty()};
 
 	  this.logContentState = this.logContentState.bind(this);
+	  this.importContentState = this.importContentState.bind(this);
 	  this.focus = this.focus.bind(this);
 	  this.onChange = this.onChange.bind(this);
 	  this.toggleColor = this.toggleColor.bind(this);
@@ -29,12 +32,25 @@ class ColorfulEditorExample extends React.Component {
 
 	logContentState() {
 		const currentContent = this.state.editorState.getCurrentContent();
+		console.log(currentContent);
 		console.log(convertToRaw(currentContent));
+		console.log(stateToHTML(currentContent, convertToHtmlOptions));
+	}
+	
+	importContentState() {
+		//const text = "<p><span style=\"color: rgba(255, 0, 0, 1.0)\">undv </span><span style=\"color: rgba(255, 127, 0, 1.0)\">oanv </span>wner <span style=\"color: rgba(180, 180, 0, 1.0)\">anaosbni </span><span style=\"color: rgba(0, 180, 0, 1.0)\">aoibnf </span>aqpon <span style=\"color: rgba(0, 0, 255, 1.0)\">namaqwegfv </span><span style=\"color: rgba(75, 0, 130, 1.0)\">nvdiao</span><span style=\"color: rgba(127, 0, 255, 1.0)\"> sdavun </span>wl;nr</p>\r\n<p>asndvaoiunbow awovernoab aowrbndobnf</p>";
+		const text = '<p><span style="color: rgba(255, 0, 0, 1.0)">undv </span><span style="color: rgba(255, 127, 0, 1.0)">oanv </span>wner <span style="color: rgba(180, 180, 0, 1.0)">anaosbni </span><span style="color: rgba(0, 180, 0, 1.0)">aoibnf </span>aqpon <span style="color: rgba(0, 0, 255, 1.0)">namaqwegfv </span><span style="color: rgba(75, 0, 130, 1.0)">nvdiao</span><span style="color: rgba(127, 0, 255, 1.0)"> sdavun </span>wl;nr</p><p>asndvaoiunbow awovernoab <span style="color: rgba(0, 0, 255, 1.0)">aow</span><span style="color: rgba(180, 180, 0, 1.0)">rbnd</span><span style="color: rgba(0, 0, 255, 1.0)">obnf</span></p>';
+		const currentContent = stateFromHTML(text, convertFromHtmlOptions);
+		let nextEditorState = EditorState.push(
+		this.state.editorState,
+		currentContent,
+		'insert-fragment'
+	  );
+	  this.onChange(nextEditorState);
 	}
 
 	toggleColor(toggledColor) {
 	  const {editorState} = this.state;
-	  console.log(editorState);
 	  const selection = editorState.getSelection();
 
 	  // Let's just allow one color at a time. Turn off all active colors.
@@ -86,7 +102,7 @@ class ColorfulEditorExample extends React.Component {
 			  ref={(ref) => this.editor = ref}
 			/>
 		  </div>
-		  <div><button onClick={this.logContentState}>Log Content State</button></div>
+		  <div><button onClick={this.logContentState}>Log Content State</button> <button onClick={this.importContentState}>Import Content State</button></div>
 		</div>
 	  );
 	}
@@ -175,6 +191,45 @@ const colorStyleMap = {
 	  color: 'rgba(127, 0, 255, 1.0)',
 	},
 };
+
+const convertToHtmlOptions = (function createConvertToHtmlOptions() {
+	
+	const convertToHtmlStyles = {};
+
+	for (const key of Object.keys(colorStyleMap)) {
+		convertToHtmlStyles[key] = {'style': colorStyleMap[key]};
+	}
+
+	return {inlineStyles: convertToHtmlStyles};
+})();
+
+const convertFromHtmlOptions = (function createConvertFromHtmlOptions() {
+	const reverseStyleMap = {};
+	
+	for (const key of Object.keys(colorStyleMap)) {
+		var style = colorStyleMap[key];
+		for (const attr of Object.keys(style)) {
+			var val = style[attr];
+			if (val.startsWith('rgba(') && val.endsWith('1.0)')) {
+				val = val.replace('rgba(', 'rgb(').replace(new RegExp(',\\s?1\\.0'), '');
+			}
+			if (!reverseStyleMap[attr]) {
+				reverseStyleMap[attr] = {}; 
+			}
+			reverseStyleMap[attr][val] = key;
+		}
+	}
+	
+	function customInlineFn(element, {Style, Entity}) {
+		if (element.tagName === 'SPAN' && element.style && element.style["0"] === "color") {
+			const colorValue = element.style["color"];
+			const styleKey = reverseStyleMap["color"][colorValue];
+			return Style(styleKey);
+		}
+	};
+	
+	return { customInlineFn: customInlineFn };
+})();
 
 const styles = {
 	root: {
